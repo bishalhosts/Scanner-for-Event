@@ -138,14 +138,22 @@
     var list = null, total = 0, inCount = 0, queue = [], sending = false, dirty = false, offline = false;
     var resetT = null, lastTok = '', lastAt = 0;
     var CAN_SPEAK = !!window.speechSynthesis;
-    var TITLES = { mr: 'Mister', mrs: 'Missus', ms: 'Mizz', dr: 'Doctor' };
 
     // ---------- VOICE ----------
-    // Titles are changed only when spoken. The Sheet still shows Mr / Ms / Mrs / Dr.
+    // Only the first name is spoken, with Sir / Madam from the title. The Sheet and the screen keep the full name.
+    //   Mr Ram Prasad Sharma  -> "Ram Sir"
+    //   Ms / Mrs Sunita Rai   -> "Sunita Madam"
+    //   Dr Ram Sharma         -> "Doctor Ram"
+    //   No title              -> first name only
     function spoken(name) {
-      return String(name || '').replace(/\b(mrs|mr|ms|dr)\b\.?/gi, function (m, t) {
-        return TITLES[t.toLowerCase()];
-      });
+      var m = String(name || '').trim().match(/^(mrs|mr|ms|dr)\b\.?\s*(.*)$/i);
+      var t = m ? m[1].toLowerCase() : '';
+      var first = ((m ? m[2] : String(name || '')).trim().split(/\s+/)[0] || '').replace(/[.,]/g, '');
+      if (!first) return '';
+      if (t === 'mr') return first + ' Sir';
+      if (t === 'ms' || t === 'mrs') return first + ' Madam';
+      if (t === 'dr') return 'Doctor ' + first;
+      return first;
     }
 
     if (CAN_SPEAK) speechSynthesis.onvoiceschanged = function () { vc = null; };
@@ -379,7 +387,7 @@
       };
       var k = map[r.result] ? r.result : 'error', m = map[k];
       setStatus(k, m[0], m[1], m[2]);
-      if (k === 'ok') speak('Welcome, ' + spoken(r.name));
+      if (k === 'ok') speak('Welcome' + (spoken(r.name) ? ', ' + spoken(r.name) : ''));
       else if (k === 'already') speak('Already checked in');
       else beep(ERR_BEEP[k]);
       vibrateFor(k);
