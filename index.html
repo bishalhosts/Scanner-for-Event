@@ -11,7 +11,12 @@
     [hidden] { display: none !important; }
     html, body { margin: 0; min-height: 100%; }
     body { background: var(--bg); color: var(--fg); font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
-    .wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+    /* Screen-edge flash that shows the scan result from a distance */
+    body::after { content: ""; position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 0 transparent; transition: box-shadow .15s; }
+    body.f-ok::after { box-shadow: inset 0 0 0 10px var(--ok); }
+    body.f-already::after { box-shadow: inset 0 0 0 10px var(--warn); }
+    body.f-invalid::after, body.f-denied::after, body.f-error::after { box-shadow: inset 0 0 0 10px var(--bad); }
+    .wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
     h1 { font-size: 22px; margin: 8px 0 0; }
     p.lead { margin: 0; color: var(--mut); }
     .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
@@ -23,22 +28,40 @@
     button.primary { background: var(--accent); color: #fff; width: 100%; }
     button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
     .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    #count { font-size: 18px; font-weight: 700; }
-    .frame { position: relative; border-radius: 14px; overflow: hidden; background: #000; border: 1px solid var(--line); aspect-ratio: 1/1; max-height: 52vh; margin: 0 auto; width: 100%; min-height: 220px; }
+    #count { font-size: 24px; font-weight: 800; }
+    .prog { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+    .prog i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .3s; }
+    .meta { display: flex; gap: 8px; flex-wrap: wrap; min-height: 26px; }
+    .pill { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--line); color: var(--mut); }
+    .pill.good { background: #163d28; color: #7fe0a8; }
+    .pill.warn { background: #4a3500; color: #ffc861; }
+    .pill.bad { background: #4d1b1b; color: #ffb4b4; }
+    .frame { position: relative; border-radius: 14px; overflow: hidden; background: #000; border: 1px solid var(--line); aspect-ratio: 1/1; max-height: 38vh; margin: 0 auto; width: 100%; min-height: 200px; }
     #reader { width: 100%; height: 100%; }
     #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
     #reader img { display: none; }
+    /* Corner guide: square, centered, 70% of the frame height (matches the scan box) */
+    .guide { position: absolute; top: 50%; left: 50%; height: 70%; aspect-ratio: 1; transform: translate(-50%, -50%); pointer-events: none; }
+    .guide span { position: absolute; width: 26px; height: 26px; border: 4px solid #fff; opacity: .9; }
+    .guide .a { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 8px 0 0 0; }
+    .guide .b { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 8px 0 0; }
+    .guide .c { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 8px; }
+    .guide .d { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 8px 0; }
     #cam { margin: 0; color: var(--mut); font-size: 14px; text-align: center; min-height: 20px; }
     #cam.err { color: #ffb4b4; }
-    #status { border-radius: 14px; padding: 22px 16px; text-align: center; background: var(--card); border: 1px solid var(--line); transition: background .15s; }
+    /* Fixed height so the layout never jumps between scans */
+    #status { height: 156px; border-radius: 14px; padding: 12px 16px; text-align: center; background: var(--card); border: 1px solid var(--line); display: flex; flex-direction: column; justify-content: center; overflow: hidden; transition: background .15s; }
     #status.ok { background: var(--ok); border-color: var(--ok); }
     #status.already { background: var(--warn); border-color: var(--warn); }
     #status.invalid, #status.denied, #status.error { background: var(--bad); border-color: var(--bad); }
-    #big { font-size: 34px; font-weight: 800; margin: 0; }
-    #sub { font-size: 18px; margin: 6px 0 0; color: #e6e9f0; overflow-wrap: anywhere; }
+    #lab { font-size: 15px; font-weight: 700; margin: 0; }
+    #lab:empty { display: none; }
+    #big { font-size: 32px; font-weight: 800; line-height: 1.15; margin: 2px 0 4px; overflow-wrap: anywhere; }
+    #sub { font-size: 17px; margin: 0; color: #e6e9f0; overflow-wrap: anywhere; }
+    #big, #sub { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
     form { display: flex; gap: 8px; }
     form input { flex: 1; min-width: 0; }
-    #retry { width: 100%; margin-top: 8px; }
+    #retry { width: 100%; }
     @media (min-width: 700px) {
       body { padding-top: 32px; }
       .frame { max-height: 420px; }
@@ -60,7 +83,7 @@
         </div>
         <div class="field">
           <label for="key">Staff key</label>
-          <input id="key" autocapitalize="off" autocomplete="off" placeholder="key">
+          <input id="key" type="password" autocapitalize="off" autocomplete="off" placeholder="key">
         </div>
         <div class="field">
           <label for="by">Your name</label>
@@ -71,23 +94,32 @@
     </section>
 
     <section id="app" hidden>
-      <div class="bar">
-        <strong id="count">Loading…</strong>
-        <button id="reset">Settings</button>
+      <div class="wrap">
+        <div class="bar">
+          <strong id="count">Loading…</strong>
+          <button id="reset">Settings</button>
+        </div>
+        <div class="prog"><i id="pg"></i></div>
+        <div class="meta">
+          <span id="snd" class="pill warn">Touch the screen to enable voice</span>
+          <span id="net" class="pill" hidden></span>
+        </div>
+        <div class="frame">
+          <div id="reader"></div>
+          <div class="guide"><span class="a"></span><span class="b"></span><span class="c"></span><span class="d"></span></div>
+        </div>
+        <p id="cam"></p>
+        <button id="retry" hidden>Retry camera</button>
+        <div id="status">
+          <p id="lab"></p>
+          <p id="big">Ready</p>
+          <p id="sub">Point the camera at a ticket</p>
+        </div>
+        <form id="manual">
+          <input id="code" placeholder="Or type the ticket code" autocomplete="off" autocapitalize="off">
+          <button type="submit">Check</button>
+        </form>
       </div>
-      <div class="frame">
-        <div id="reader"></div>
-      </div>
-      <p id="cam"></p>
-      <button id="retry" hidden>Retry camera</button>
-      <div id="status">
-        <p id="big">Ready</p>
-        <p id="sub">Point the camera at a ticket</p>
-      </div>
-      <form id="manual">
-        <input id="code" placeholder="Or type the ticket code" autocomplete="off" autocapitalize="off">
-        <button type="submit">Check</button>
-      </form>
     </section>
 
   </div>
@@ -102,27 +134,76 @@
       return document.getElementById(id);
     };
 
-    var busy = false, scanner = null;
+    var busy = false, scanner = null, booted = false, unlocked = false, audioCtx = null, vc = null, wake = null;
+    var list = null, total = 0, inCount = 0, queue = [], sending = false, dirty = false, offline = false;
+    var resetT = null, lastTok = '', lastAt = 0;
+    var CAN_SPEAK = !!window.speechSynthesis;
+    var TITLES = { mr: 'Mister', mrs: 'Missus', ms: 'Mizz', dr: 'Doctor' };
 
-    // ---------- BEEP (Web Audio API, no files needed) ----------
-    var audioCtx = null;
+    // ---------- VOICE ----------
+    // Titles are changed only when spoken. The Sheet still shows Mr / Ms / Mrs / Dr.
+    function spoken(name) {
+      return String(name || '').replace(/\b(mrs|mr|ms|dr)\b\.?/gi, function (m, t) {
+        return TITLES[t.toLowerCase()];
+      });
+    }
 
-    function unlockAudio() {
+    if (CAN_SPEAK) speechSynthesis.onvoiceschanged = function () { vc = null; };
+
+    // Female English voice first. If the phone has none, the phone's default voice is used.
+    function pickVoice() {
+      if (vc) return vc;
+      var f = speechSynthesis.getVoices().filter(function (v) {
+        return /^en/i.test(v.lang) && /female|zira|samantha|susan|karen|moira|tessa|fiona|victoria|hazel|google us english/i.test(v.name);
+      });
+      return (vc = f[0] || null);
+    }
+
+    function speak(text) {
+      if (!CAN_SPEAK) return;
       try {
-        if (!audioCtx) {
-          var AC = window.AudioContext || window.webkitAudioContext;
-          if (!AC) return;
-          audioCtx = new AC();
-        }
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        var o = audioCtx.createOscillator();
-        var g = audioCtx.createGain();
-        g.gain.value = 0.0001;
-        o.connect(g).connect(audioCtx.destination);
-        o.start();
-        o.stop(audioCtx.currentTime + 0.01);
+        speechSynthesis.cancel();                 // a new scan cuts off the old voice
+        var u = new SpeechSynthesisUtterance(text);
+        var v = pickVoice();
+        if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
+        speechSynthesis.speak(u);
       } catch (e) {}
     }
+
+    function setSnd() {
+      var e = $('snd');
+      if (!CAN_SPEAK) { e.textContent = 'Voice not supported in this browser'; e.className = 'pill bad'; return; }
+      e.textContent = unlocked ? 'Voice on' : 'Touch the screen to enable voice';
+      e.className = 'pill ' + (unlocked ? 'good' : 'warn');
+    }
+
+    // Phones allow sound only after a touch. The first touch anywhere unlocks voice and beeps.
+    function unlock() {
+      if (unlocked) return;
+      try {
+        if (CAN_SPEAK) {
+          var u = new SpeechSynthesisUtterance(' ');   // silent warm-up so the first real scan is fast
+          u.volume = 0;
+          speechSynthesis.speak(u);
+          speechSynthesis.getVoices();
+        }
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (AC && !audioCtx) audioCtx = new AC();
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        unlocked = true;
+      } catch (e) {}
+      setSnd();
+    }
+    ['pointerdown', 'touchstart', 'click', 'keydown'].forEach(function (ev) {
+      document.addEventListener(ev, unlock, { passive: true });
+    });
+
+    // Beeps are used only for results that are not spoken (invalid ticket, wrong key, no connection).
+    var ERR_BEEP = {
+      invalid: [{ f: 300, d: 0.08 }, { f: 300, d: 0.08 }, { f: 300, d: 0.08 }],
+      denied: [{ f: 220, d: 0.1 }, { f: 220, d: 0.1 }, { f: 220, d: 0.1 }],
+      error: [{ f: 220, d: 0.12 }, { f: 220, d: 0.12 }]
+    };
 
     function beep(pattern) {
       try {
@@ -134,42 +215,33 @@
         if (audioCtx.state === 'suspended') audioCtx.resume();
         var t = audioCtx.currentTime;
         pattern.forEach(function (p) {
-          var osc = audioCtx.createOscillator();
-          var gain = audioCtx.createGain();
-          osc.type = 'square';
-          osc.frequency.value = p.f;
-          gain.gain.setValueAtTime(0.0001, t);
-          gain.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
-          gain.gain.exponentialRampToValueAtTime(0.0001, t + p.d);
-          osc.connect(gain).connect(audioCtx.destination);
-          osc.start(t);
-          osc.stop(t + p.d + 0.01);
-          t += p.d + (p.gap || 0);
+          var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          o.type = 'square';
+          o.frequency.value = p.f;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + p.d);
+          o.connect(g).connect(audioCtx.destination);
+          o.start(t);
+          o.stop(t + p.d + 0.01);
+          t += p.d + 0.06;
         });
       } catch (e) {}
     }
 
-    function soundFor(resultType) {
-      if (resultType === 'ok') beep([{ f: 988, d: 0.12, gap: 0 }]);
-      else if (resultType === 'already') beep([{ f: 880, d: 0.14, gap: 0.06 }, { f: 587, d: 0.18, gap: 0 }]);
-      else if (resultType === 'invalid') beep([{ f: 300, d: 0.08, gap: 0.05 }, { f: 300, d: 0.08, gap: 0.05 }, { f: 300, d: 0.08, gap: 0 }]);
-      else if (resultType === 'denied') beep([{ f: 220, d: 0.1, gap: 0.06 }, { f: 220, d: 0.1, gap: 0.06 }, { f: 220, d: 0.1, gap: 0 }]);
-      else if (resultType === 'error') beep([{ f: 220, d: 0.12, gap: 0.08 }, { f: 220, d: 0.12, gap: 0 }]);
-    }
-
-    function vibrateFor(resultType) {
+    function vibrateFor(k) {
       if (!navigator.vibrate) return;
-      if (resultType === 'ok') navigator.vibrate(80);
-      else if (resultType === 'already') navigator.vibrate([150, 80, 150]);
-      else if (resultType === 'invalid') navigator.vibrate([80, 60, 80, 60, 80]);
-      else navigator.vibrate([120, 80, 120]);
+      navigator.vibrate(k === 'ok' ? 80 : k === 'already' ? [150, 80, 150] : k === 'invalid' ? [80, 60, 80, 60, 80] : [120, 80, 120]);
     }
 
+    // ---------- SETUP ----------
     function show() {
       var ready = cfg.url && cfg.key;
       $('setup').hidden = !!ready;
       $('app').hidden = !ready;
       if (ready) {
+        setSnd();
+        boot();
         // Wait one animation frame so #app/#reader have real size before the camera starts.
         requestAnimationFrame(function () {
           setTimeout(start, 50);
@@ -182,12 +254,8 @@
     }
 
     $('save').onclick = function () {
-      unlockAudio();
-      cfg = {
-        url: $('url').value.trim(),
-        key: $('key').value.trim(),
-        by: $('by').value.trim()
-      };
+      unlock();
+      cfg = { url: $('url').value.trim(), key: $('key').value.trim(), by: $('by').value.trim() };
       try {
         localStorage.setItem('cfg', JSON.stringify(cfg));
       } catch (e) {}
@@ -212,10 +280,6 @@
     }
 
     // ---------- Instant scan: list kept in memory, saves go to the Sheet in the background ----------
-    var list = null, total = 0, inCount = 0;
-    var queue = [], sending = false, dirty = false, offline = false;
-    var resetT = null, lastTok = '', lastAt = 0;
-
     function qkey() {
       return 'queue:' + (cfg.url || '');
     }
@@ -226,15 +290,25 @@
       } catch (e) {}
     }
 
+    // Same format as the Sheet: yyyy-MM-dd hh:mm:ss AM (Nepal time)
     function clock() {
-      return new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kathmandu' });
+      var d = new Date();
+      return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kathmandu' }) + ' ' +
+        d.toLocaleTimeString('en-US', { timeZone: 'Asia/Kathmandu', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).replace(/\u202f/g, ' ');
     }
 
     function showCount() {
       if (!list) return;
-      var s = inCount + ' in · ' + (total - inCount) + ' to go';
-      if (queue.length) s += offline ? ' · offline, ' + queue.length + ' waiting' : ' · saving ' + queue.length;
-      $('count').textContent = s;
+      $('count').textContent = inCount + ' in, ' + (total - inCount) + ' to go';
+      $('pg').style.width = (total ? inCount / total * 100 : 0) + '%';
+      var n = $('net');
+      if (queue.length) {
+        n.hidden = false;
+        n.className = 'pill ' + (offline ? 'bad' : 'warn');
+        n.textContent = offline ? 'Offline, ' + queue.length + ' waiting' : 'Saving ' + queue.length;
+      } else {
+        n.hidden = true;
+      }
     }
 
     function applyList(rows) {
@@ -272,28 +346,46 @@
       });
     }
 
-    function setStatus(cls, big, sub) {
+    // Runs once. Starts the saved queue and a 10 second sync so two phones stay close together.
+    function boot() {
+      if (booted) return;
+      booted = true;
+      try {
+        queue = JSON.parse(localStorage.getItem(qkey()) || '[]');
+      } catch (e) {
+        queue = [];
+      }
+      sync();
+      flush();
+      setInterval(sync, 10000);
+    }
+
+    function setStatus(cls, lab, big, sub) {
       $('status').className = cls;
+      $('lab').textContent = lab;
       $('big').textContent = big;
       $('sub').textContent = sub;
+      document.body.className = cls ? 'f-' + cls : '';
     }
 
     function result(r) {
-      var who = [r.name, r.designation, r.organization].filter(Boolean).join(', ');
+      var who = [r.designation, r.organization].filter(Boolean).join(', ');
       var map = {
-        ok: ['Welcome', who],
-        already: ['Already used', (r.name || '') + ' came in at ' + (r.checkedInAt || '')],
-        invalid: ['Not a valid ticket', 'Check the code and try again'],
-        denied: ['Wrong staff key', 'Tap Settings and enter it again'],
-        error: ['No connection', 'Check the internet and try again']
+        ok: ['Welcome', r.name || '', who],
+        already: [r.dup ? 'Duplicate, already entered' : 'Already checked in', r.name || '', 'Came in at ' + (r.checkedInAt || 'earlier')],
+        invalid: ['', 'Not a valid ticket', 'Check the code and try again'],
+        denied: ['', 'Wrong staff key', 'Tap Settings and enter it again'],
+        error: ['', 'No connection', 'Check the internet and try again']
       };
-      var m = map[r.result] || map.error;
-      setStatus(map[r.result] ? r.result : 'error', m[0], m[1]);
-      soundFor(r.result);
-      vibrateFor(r.result);
+      var k = map[r.result] ? r.result : 'error', m = map[k];
+      setStatus(k, m[0], m[1], m[2]);
+      if (k === 'ok') speak('Welcome, ' + spoken(r.name));
+      else if (k === 'already') speak('Already checked in');
+      else beep(ERR_BEEP[k]);
+      vibrateFor(k);
       clearTimeout(resetT);
       resetT = setTimeout(function () {
-        setStatus('', 'Ready', 'Point the camera at a ticket');
+        setStatus('', '', 'Ready', 'Point the camera at a ticket');
       }, 2500);
       setTimeout(function () {
         busy = false;
@@ -316,12 +408,13 @@
         saveQueue();
         dirty = true;
         if (r.result === 'already') {
+          // Another phone entered this person first
           var p = list && list[q.code.toLowerCase()];
           if (p && r.checkedInAt) p.t = r.checkedInAt;
-          result(r);
+          result({ result: 'already', name: r.name, checkedInAt: r.checkedInAt, dup: true });
         } else if (r.result !== 'ok') {
-          setStatus('error', 'Not saved', 'Ticket ' + q.code + ' was not found');
-          soundFor('error');
+          setStatus('error', '', 'Not saved', 'Ticket ' + q.code + ' was not found');
+          beep(ERR_BEEP.error);
           vibrateFor('error');
         }
         sending = false;
@@ -336,7 +429,7 @@
     }
 
     function slowCheck(code) {
-      setStatus('', 'Checking…', 'Please wait');
+      setStatus('', '', 'Checking…', 'Please wait');
       call({ action: 'scan', token: code, by: cfg.by || '' }).then(function (r) {
         var p = list && list[code.toLowerCase()];
         if (r.result === 'ok' && p && !p.t) {
@@ -373,11 +466,21 @@
       flush();
     }
 
-    // ---------- Camera start: real checks + clear errors + retry ----------
+    // ---------- Camera: real checks, clear errors, retry, restart after screen lock ----------
     function camFail(msg) {
       $('cam').textContent = msg;
       $('cam').classList.add('err');
       $('retry').hidden = false;
+    }
+
+    function keepAwake() {
+      try {
+        if (navigator.wakeLock && document.visibilityState === 'visible') {
+          navigator.wakeLock.request('screen').then(function (w) {
+            wake = w;
+          }).catch(function () {});
+        }
+      } catch (e) {}
     }
 
     function start() {
@@ -386,30 +489,18 @@
       $('cam').textContent = 'Starting camera…';
       $('retry').hidden = true;
 
-      // 1) Must be HTTPS / localhost
       if (!window.isSecureContext) {
         camFail('Camera needs HTTPS. Open this page from an https:// address (not file:// and not http://).');
         return;
       }
-      // 2) getUserMedia available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         camFail('This browser does not support the camera. Use Chrome on Android or Safari on iOS, over HTTPS.');
         return;
       }
-      // 3) Library loaded
       if (typeof Html5Qrcode === 'undefined') {
         camFail('Scanner library did not load. Check the internet and reload the page.');
         return;
       }
-
-      try {
-        queue = JSON.parse(localStorage.getItem(qkey()) || '[]');
-      } catch (e) {
-        queue = [];
-      }
-      sync();
-      flush();
-      setInterval(sync, 30000);
 
       scanner = new Html5Qrcode('reader', {
         formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
@@ -430,11 +521,12 @@
         $('cam').textContent = 'Point the camera at a ticket';
         $('cam').classList.remove('err');
         $('retry').hidden = true;
+        keepAwake();
       }).catch(function (err) {
         var name = (err && err.name) || '';
-        var msg = 'Camera failed to start.';
+        var msg;
         if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-          msg = 'Camera permission was denied. Tap the lock icon in the address bar → Site settings → Camera → Allow, then tap Retry.';
+          msg = 'Camera permission was denied. Tap the lock icon in the address bar, then Site settings, Camera, Allow. Then tap Retry.';
         } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
           msg = 'No camera found on this device.';
         } else if (name === 'NotReadableError' || name === 'TrackStartError') {
@@ -451,13 +543,26 @@
       });
     }
 
-    $('retry').onclick = function () {
-      if (scanner) {
-        try { scanner.clear(); } catch (e) {}
-        scanner = null;
-      }
-      start();
-    };
+    // Stops the old camera (if any) and starts a fresh one. Used by Retry and when the phone wakes up.
+    function restartCam() {
+      var s = scanner;
+      scanner = null;
+      if (!s) return start();
+      Promise.resolve().then(function () {
+        return s.stop();
+      }).catch(function () {}).then(function () {
+        try { s.clear(); } catch (e) {}
+        start();
+      });
+    }
+
+    $('retry').onclick = restartCam;
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible' || $('app').hidden) return;
+      keepAwake();
+      restartCam();
+    });
 
     $('manual').onsubmit = function (e) {
       e.preventDefault();
